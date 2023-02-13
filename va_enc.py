@@ -22,3 +22,21 @@ class VAE(pl.LightningModule):
 
         self.fc_mu = nn.Linear(enc_out_dim, latent_dim)
         self.fc_var = nn.Linear(enc_out_dim, latent_dim)
+
+vae = VAE()
+
+x = torch.rand(1,3,32,32)
+
+print('image shape:',x.shape)
+
+x_encoded = vae.encoder(x)
+mu, log_var = vae.fc_mu(x_encoded), vae.fc_var(x_encoded)
+
+print('mu:', mu.shape)
+print('log_var:', log_var.shape)
+
+std = torch.exp(log_var / 2)
+q = torch.distributions.Normal(mu, std)
+z = q.rsample()
+
+print('z shape:', z.shape)
