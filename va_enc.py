@@ -40,3 +40,7 @@ q = torch.distributions.Normal(mu, std)
 z = q.rsample()
 
 print('z shape:', z.shape)
+
+zero = torch.zeros_like(mu)
+one = torch.ones_like(std)
+p = torch.distributions.Normal(zero, one)
