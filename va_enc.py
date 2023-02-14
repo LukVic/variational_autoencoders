@@ -44,3 +44,22 @@ print('z shape:', z.shape)
 zero = torch.zeros_like(mu)
 one = torch.ones_like(std)
 p = torch.distributions.Normal(zero, one)
+
+x_hat = vae.decoder(z)
+print(x_hat.shape)
+
+x_hat = vae.decoder(z)
+print('we have these many parameters for a distribution:', x_hat.shape)
+
+log_scale = nn.Parameter(torch.Tensor([0.0]))
+scale = torch.exp(log_scale)
+dist = torch.distributions.Normal(x_hat, scale)
+log_pxz = dist.log_prob(x)
+
+print(log_pxz.shape)
+
+log_pxz = log_pxz.sum(dim=(1, 2, 3))
+print(log_pxz.shape)
+print('reconstruction loss:', log_pxz.item())
+
+recon_loss = log_pxz
