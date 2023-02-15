@@ -63,3 +63,18 @@ print(log_pxz.shape)
 print('reconstruction loss:', log_pxz.item())
 
 recon_loss = log_pxz
+
+#KL Divergence
+
+p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std))
+q = torch.distributions.Normal(mu, std)
+
+log_qzx = q.log_prob(z)
+log_pz = p.log_prob(z)
+
+print(log_qzx.shape, log_pz.shape)
+
+kl = (log_qzx - log_pz)
+
+kl = kl.sum(-1)
+print(kl)
