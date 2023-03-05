@@ -19,6 +19,13 @@ class Encoder(nn.Module):
         scores = self.body(x)
         mu, sigma = torch.split(scores, self.zdim, dim=1)
         sigma = torch.exp(sigma)
+
+        # initialise a tensor of normal distributions from tensors z_mu, z_sigma
+        qz = torch.distributions.Normal(mu, sigma)
+
+        
+        # compute log-probabilities for a tensor z
+        logz = qz.log_prob(z)
  
         return mu, sigma
 
@@ -36,16 +43,32 @@ class Decoder(nn.Module):
  
         return mu     
 
+class VariationalAutoencoder(nn.Module):
+    def _init_(self, zdims):
+        super(VariationalAutoencoder, self).__init__()
+        self.encoder = VariationalAutoencoder(zdims)
+        self.decoder = Decoder(zdims)
+
+    def forward(self, x):
+        x = x.to(device)
+        mu, sigma = self.encoder(x)
+        return self.decoder()
+
+
 
 mnist_trainset = datasets.MNIST(root='./data', train=True, download=True, transform=None)
 training_loader = torch.utils.data.DataLoader(mnist_trainset, batch_size=16, shuffle=True)
 device = torch.device('cuda')
-enc = Encoder()
-enc.train()
-z_um, z_sigma = enc.eval()
+
+zdim = 100
+
+enc = Encoder(zdim)
+print(enc)
+#enc.train()
 
 
-# initialise a tensor of normal distributions from tensors z_mu, z_sigma
+
+# # initialise a tensor of normal distributions from tensors z_mu, z_sigma
 qz = torch.distributions.Normal(z_mu, z_sigma)
  
 # compute log-probabilities for a tensor z
