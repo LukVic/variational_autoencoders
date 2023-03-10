@@ -45,7 +45,7 @@ class Encoder(nn.Module):
     def __init__(self, zdim):
         super(Encoder, self).__init__()
         self.zdim = zdim
- 
+
         # construct the body
         body_list = []
         bl = nn.Linear(784, self.zdim * 2) 
@@ -57,12 +57,14 @@ class Encoder(nn.Module):
         mu, sigma = torch.split(scores, self.zdim, dim=1)
         sigma = torch.exp(sigma)
 
+
         # initialise a tensor of normal distributions from tensors z_mu, z_sigma
-        qz = torch.distributions.Normal(mu, sigma)
+        #qz = torch.distributions.Normal(mu, sigma)
+        #p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(sigma))
         # sample from the distributions with re-parametrisation
-        zs = qz.rsample()
+        #zs = qz.rsample()
  
-        return zs
+        return mu, sigma
 
 class Decoder(nn.Module):
     def __init__(self, zdim):
@@ -83,16 +85,62 @@ class VariationalAutoencoder(nn.Module):
         super(VariationalAutoencoder, self).__init__()
         self.encoder = Encoder(zdim)
         self.decoder = Decoder(zdim)
+        self.kl = 0
 
     def forward(self, x):
         x = x.to(device)
-        z = self.encoder(x)
-        return self.decoder()
+        mu, sigma = self.encoder(x)
+        qz = torch.distributions.Normal(mu, sigma)
+        pz = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(sigma))
+        zs = qz.rsample()
+        self.kl = torch.distributions.kl_divergence(qz, pz)
+        return self.decoder(zs)
+
+    def recon(x):
+        x_hat = vae(x)
+        log_scale = nn.Parameter(torch.Tensor([0.0]))
+        scale = torch.exp(log_scale)
+        pxz = torch.distributions.Normal(x_hat, scale)
+        log_pxz = pxz.log_prob(x)
+        E_log_pxz = log_pxz.sum(dim=(1, 2, 3))
+
+        return E_log_pxz
+
+    def train_step(self, vae, device, dataloader, optimizer):
+        
+        vae.train()
+        train_loss = 0.0
+
+        for x, _ in dataloader:
+            x = x.to(device)
+
+            elbo = vae.kl - self.recon(x)
+            loss = elbo.mean()
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            # Print batch loss
+            print('\t partial train loss (single batch): %f' % (loss.item()))
+            train_loss+=loss.item()
+
+        return train_loss / len(dataloader.dataset)
     
-    def train_step(self):
-        pass
+    def test_epoch(self, vae, device, dataloader):
+        
+        vae.eval()
+        val_loss = 0.0
+        with torch.no_grad(): # No need to track the gradients
+            for x, _ in dataloader:
+                
+                x = x.to(device)
+                # Decode data
+                elbo = vae.kl - self.recon(x)
+                loss = elbo.mean()
+                val_loss += loss.item()
 
-
+        return val_loss / len(dataloader.dataset)
+    
 
 # mnist_trainset = datasets.MNIST(root='./data', train=True, download=True, transform=None)
 # training_loader = torch.utils.data.DataLoader(mnist_trainset, batch_size=16, shuffle=True)
@@ -128,3 +176,16 @@ vae.to(device)
  
 # # compute KL divergence for two tensors with probability distributions
 # kl_div = torch.distributions.kl_divergence(qz, pz)
+
+
+    # def forward(self, x):
+    #     x = x.to(device)
+    #     mu, sigma = self.encoder(x)
+    #     qz = torch.distributions.Normal(mu, sigma)
+    #     pz = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(sigma))
+
+    #     zs = qz.rsample()
+
+    #     self.kl_div = torch.distributions.kl_divergence(qz, pz)
+    
+    #     return self.decoder(zs)
